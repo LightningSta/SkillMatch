@@ -1,0 +1,134 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.4'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'com.bmuschko.docker-spring-boot-application'  version '9.3.1'
+}
+
+group = 'org.skillMatch'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springAiVersion', "1.0.0-M6")
+	set('springCloudVersion', "2024.0.1")
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.ai:spring-ai-pdf-document-reader'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.ai:spring-ai-tika-document-reader'
+	implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'
+	implementation 'org.json:json:20240303'
+	implementation 'org.jsoup:jsoup:1.16.1'
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+	compileOnly 'org.projectlombok:lombok'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+/**
+ * Docker tasks
+ */
+import com.bmuschko.gradle.docker.tasks.image.*
+import com.bmuschko.gradle.docker.tasks.container.*
+
+docker {
+	String ServiceName= "AnalizService"
+	String imageName = "analiz-service:latest"
+	def ourContainerName = ServiceName+"-docker"
+	int port = 8072
+	String groupTasks='Docker'
+
+	url = 'http://localhost:2375'
+
+	task syncJar(type: Copy) {
+		group = groupTasks
+		dependsOn assemble
+		from bootJar.archiveFile.get().asFile
+		into "$buildDir/docker"
+	}
+
+	task createDockerFile(type: Dockerfile) {
+		group = groupTasks
+		from 'eclipse-temurin:22-jdk'
+		copyFile bootJar.archiveFileName.get(), '/app/'+ServiceName+'.jar'
+		workingDir "/app"
+		exposePort port
+		defaultCommand 'java','-jar',ServiceName+'.jar'
+		instruction 'HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 CMD wget --no-verbose --tries=1 --spider http://localhost:'+port+'/actuator/health || exit 1'
+	}
+
+	task buildImage(type: DockerBuildImage) {
+		group = groupTasks
+		dependsOn createDockerFile, syncJar
+		inputDir = createDockerFile.getDestDir()
+		images = [imageName]
+	}
+
+	task stopContainer(type: DockerStopContainer) {
+		group = groupTasks
+		targetContainerId("$ourContainerName")
+		onError { exception -> handleError(exception) }
+	}
+
+	task removeContainer(type: DockerRemoveContainer) {
+		dependsOn stopContainer
+		group = groupTasks
+		targetContainerId("$ourContainerName")
+		onError { exception -> handleError(exception) }
+	}
+
+	task createContainer(type: DockerCreateContainer) {
+		group = groupTasks
+		dependsOn buildImage, removeContainer
+		targetImageId buildImage.getImageId()
+		containerName = "$ourContainerName"
+		hostConfig.portBindings = [port+':'+port]
+		hostConfig.network = 'my-network'
+	}
+
+	task startContainer(type: DockerStartContainer) {
+		group = groupTasks
+		dependsOn createContainer
+		targetContainerId("$ourContainerName")
+	}
+
+}
+private void handleError(Throwable exc) {
+	if (exc.message != null &&
+			!exc.message.contains('NotModifiedException') &&
+			!exc.message.contains('No such container')) {
+	}
+}

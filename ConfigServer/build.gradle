@@ -1,0 +1,146 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.4'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.bmuschko.docker-spring-boot-application'  version '9.3.1'
+    id 'com.bmuschko.docker-remote-api' version '9.4.0'
+}
+group = 'org.skillMatch'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springCloudVersion', "2024.0.1")
+}
+
+dependencies {
+    implementation 'org.springframework.cloud:spring-cloud-config-server'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+import com.bmuschko.gradle.docker.tasks.image.*
+import com.bmuschko.gradle.docker.tasks.container.*
+import com.bmuschko.gradle.docker.tasks.network.DockerInspectNetwork
+import com.bmuschko.gradle.docker.tasks.network.DockerCreateNetwork
+
+docker {
+    String network = "my-network"
+    ext.networkExists = true
+    task inspectNetwork(type: DockerInspectNetwork) {
+        networkId = network
+        onError { exception ->
+            networkExists=false
+            logger.lifecycle("Error while inspecting network '${networkId}': ${exception.message}")
+        }
+    }
+
+    task createNetwork(type: DockerCreateNetwork) {
+        dependsOn inspectNetwork
+        networkName="my-network"
+        doFirst {
+            if (!networkExists) {
+                logger.lifecycle("Creating network ${network}...")
+            }
+        }
+        onError {
+            logger.lifecycle("Network ${network} already exists.")
+        }
+    }
+    String ServiceName= "ConfigServer"
+    String imageName = "config-server:latest"
+    def ourContainerName = ServiceName+"-docker"
+    int port = 8888
+    String groupTasks='Docker'
+
+    url = 'http://localhost:2375'
+
+    task syncJar(type: Copy) {
+        group = groupTasks
+        dependsOn assemble
+        from bootJar.archiveFile.get().asFile
+        into "$buildDir/docker"
+    }
+    task syncConf(type: Copy) {
+        dependsOn syncJar
+        from 'C:\\Users\\nazar\\Documents\\test\\SkillMatch\\ConfigServer\\configurations'
+        into "$buildDir/docker/configurations"
+    }
+
+
+    task createDockerFile(type: Dockerfile) {
+        group = groupTasks
+        from 'eclipse-temurin:22-jdk'
+        copyFile './configurations', '/app/configurations'
+        copyFile bootJar.archiveFileName.get(), '/app/'+ServiceName+'.jar'
+        workingDir "/app"
+        exposePort port
+        defaultCommand 'java', '-jar', ServiceName+'.jar'
+        instruction 'HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 CMD wget --no-verbose --tries=1 --spider http://localhost:'+port+'/actuator/health || exit 1'
+    }
+
+    task buildImage(type: DockerBuildImage) {
+        group = groupTasks
+        dependsOn createDockerFile, syncConf
+        inputDir = createDockerFile.getDestDir()
+        images = [imageName]
+    }
+
+    task stopContainer(type: DockerStopContainer) {
+        group = groupTasks
+        targetContainerId("$ourContainerName")
+        onError { exception -> handleError(exception) }
+    }
+
+    task removeContainer(type: DockerRemoveContainer) {
+        group = groupTasks
+        dependsOn stopContainer
+        targetContainerId("$ourContainerName")
+        onError { exception -> handleError(exception) }
+    }
+
+    task createContainer(type: DockerCreateContainer) {
+        group = groupTasks
+        dependsOn buildImage, removeContainer, createNetwork
+        targetImageId buildImage.getImageId()
+        containerName = "$ourContainerName"
+        hostConfig.portBindings = [port+':'+port]
+        hostConfig.network = 'my-network'
+    }
+
+    task startContainer(type: DockerStartContainer) {
+        group = groupTasks
+        dependsOn createContainer
+        targetContainerId("$ourContainerName")
+    }
+
+}
+private void handleError(Throwable exc) {
+    if (exc.message != null &&
+            !exc.message.contains('NotModifiedException') &&
+            !exc.message.contains('No such container')) {
+    }
+}
+

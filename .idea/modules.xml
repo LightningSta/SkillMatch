@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/AnalizService.main.iml" filepath="$PROJECT_DIR$/.idea/modules/AnalizService.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GatewayService.main.iml" filepath="$PROJECT_DIR$/.idea/modules/GatewayService.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/SecurityService.main.iml" filepath="$PROJECT_DIR$/.idea/modules/SecurityService.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/SkillMatch.iml" filepath="$PROJECT_DIR$/SkillMatch.iml" />
+    </modules>
+  </component>
+</project>
