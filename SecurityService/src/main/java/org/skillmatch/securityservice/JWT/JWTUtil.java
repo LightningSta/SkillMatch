@@ -3,11 +3,9 @@ package org.skillmatch.securityservice.JWT;
 import io.jsonwebtoken.*;
 import lombok.RequiredArgsConstructor;
 import org.skillmatch.securityservice.DAO.Entity.PersonEntity;
-import org.skillmatch.securityservice.DAO.SecurityPersonRepository;
 import org.skillmatch.securityservice.Security.PersonAuthentication;
 import org.skillmatch.securityservice.Services.SecurityPersonService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.spec.SecretKeySpec;
