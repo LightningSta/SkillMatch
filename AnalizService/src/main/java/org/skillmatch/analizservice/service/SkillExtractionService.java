@@ -1,4 +1,4 @@
-package org.skillmatch.analizservice.Service;
+package org.skillmatch.analizservice.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.model.ChatModel;

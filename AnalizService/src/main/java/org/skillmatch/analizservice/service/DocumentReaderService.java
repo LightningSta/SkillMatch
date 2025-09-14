@@ -1,4 +1,4 @@
-package org.skillmatch.analizservice.Service;
+package org.skillmatch.analizservice.service;
 
 
 import org.springframework.ai.document.Document;

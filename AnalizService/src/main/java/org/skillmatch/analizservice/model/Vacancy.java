@@ -1,4 +1,4 @@
-package org.skillmatch.analizservice.Model;
+package org.skillmatch.analizservice.model;
 
 import lombok.Builder;
 import lombok.Data;

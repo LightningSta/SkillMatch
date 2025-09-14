@@ -1,11 +1,10 @@
-package org.skillmatch.analizservice.Service;
+package org.skillmatch.analizservice.service;
 
-import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.skillmatch.analizservice.Model.Vacancy;
+import org.skillmatch.analizservice.model.Vacancy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -37,6 +36,7 @@ public class ParserVacancy {
         }
 
     }
+
     protected String extractBasic(String url){
         try {
             Document document = Jsoup.connect(url)
@@ -54,5 +54,4 @@ public class ParserVacancy {
             return "Ошибка при загрузке страницы";
         }
     }
-
 }
