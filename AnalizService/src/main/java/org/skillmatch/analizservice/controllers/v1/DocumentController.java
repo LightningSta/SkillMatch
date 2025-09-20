@@ -1,4 +1,4 @@
-package org.skillmatch.analizservice.controllers;
+package org.skillmatch.analizservice.controllers.v1;
 
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuples;
 
 @RestController
-@RequestMapping("/api/analize/document/")
+@RequestMapping("/api/analize/v1/document/")
 @RequiredArgsConstructor
 public class DocumentController {
 
